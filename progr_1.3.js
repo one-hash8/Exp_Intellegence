@@ -143,7 +143,7 @@ let GoodbyClock, text_15;
 let instr_block_1, block_1, instr_2, pairs, faces_loop, idioms_loop;
 
 // store info about the experiment session:
-let expName = 'progr_idioms_2';  // from the Builder filename that created this script
+let expName = 'progr_idioms_1';  // from the Builder filename that created this script
 let expInfo = {
     'participant': `${util.pad(Number.parseFloat(util.randint(0, 999999)).toFixed(0), 6)}`,
     'age': '1',
