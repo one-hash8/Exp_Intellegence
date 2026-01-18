@@ -302,7 +302,6 @@ psychoJS.start({
     {'name': 'pics/Happiness/Happy_7.png', 'path': 'pics/Happiness/Happy_7.png'},
     {'name': 'pics/Sadness/sadness_7.png', 'path': 'pics/Sadness/sadness_7.png'},
     {'name': 'pics/Anger/anger_8.png', 'path': 'pics/Anger/anger_8.png'},
-    {'name': 'pics/Happiness/Happy_8.png', 'path': 'pics/Happiness/Happy_8.png'},
     {'name': 'pics/Sadness/sadness_8.png', 'path': 'pics/Sadness/sadness_8.png'},
     {'name': 'pics/Neut/neutr_9.png', 'path': 'pics/Neut/neutr_9.png'},
     {'name': 'pics/Anger/anger_9.png', 'path': 'pics/Anger/anger_9.png'},
