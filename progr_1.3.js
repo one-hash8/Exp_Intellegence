@@ -6326,7 +6326,7 @@ function raven_1RoutineBegin(snapshot) {
       image_raven_1_test.setImage(raven_task_path);
     }
     psychoJS.experiment.addData('raven_1.started', globalClock.getTime());
-    raven_1MaxDuration = 2
+    raven_1MaxDuration = 4
     // keep track of which components have finished
     raven_1Components = [];
     raven_1Components.push(image_raven_1_test);
@@ -7414,6 +7414,43 @@ function importConditions(snapshot) {
     };
 }
 
+// Fallback function to send data as JSON (alternative method)
+async function sendDataAsJSON(url, payload) {
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (response.ok) {
+      console.log('Data successfully sent to Google Sheets (JSON method)');
+      return true;
+    } else {
+      console.error('Failed to send data (JSON method). Status:', response.status);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error sending data (JSON method):', error);
+    // Last resort: try with no-cors mode (can't verify success)
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(payload)
+      });
+      console.log('Data sent using no-cors mode (success cannot be verified)');
+      return true;
+    } catch (noCorsError) {
+      console.error('All methods failed:', noCorsError);
+      return false;
+    }
+  }
+}
+
 // Function to send data to online Excel (Google Sheets)
 async function sendDataToOnlineExcel(data) {
   try {
@@ -7437,25 +7474,48 @@ async function sendDataToOnlineExcel(data) {
       isCompleted: true
     };
 
-    // Always use no-cors mode to bypass CORS restrictions
-    // Note: In no-cors mode, you can't read the response, but data will be sent
-    // This works for both localhost and production hosting
+    // Save data field to localStorage before sending to Google Sheets
     try {
-      await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
+      const storageKey = `psychoJS_experiment_data_${payload.participant}_${payload.date}_${Date.now()}`;
+      localStorage.setItem(storageKey, JSON.stringify(payload.data));
+    } catch (e) {
+      console.warn('Could not save data to localStorage:', e);
+    }
+
+    // Use form-urlencoded format which works better with Google Apps Script
+    // This avoids CORS issues by using a format that Google Apps Script handles natively
+    try {
+      // Convert payload to URL-encoded format
+      const formData = new URLSearchParams();
+      formData.append('participant', payload.participant);
+      formData.append('date', payload.date);
+      formData.append('expName', payload.expName);
+      formData.append('gender', payload.gender);
+      formData.append('age', payload.age);
+      formData.append('data', JSON.stringify(payload.data));
+      formData.append('isCompleted', payload.isCompleted.toString());
+
+      const response = await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
         method: 'POST',
-        mode: 'no-cors', // This bypasses CORS but you can't read the response
+        mode: 'cors', // Use cors mode for proper error handling
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify(payload)
+        body: formData.toString()
       });
       
-      // With no-cors, response.ok is always false, but request is sent
-      // Assume success since we can't check with no-cors
-      return true;
+      if (response.ok) {
+        console.log('Data successfully sent to Google Sheets');
+        return true;
+      } else {
+        console.error('Failed to send data. Status:', response.status);
+        // Try alternative method with JSON if form-urlencoded fails
+        return await sendDataAsJSON(GOOGLE_SHEETS_WEBHOOK_URL, payload);
+      }
     } catch (error) {
       console.error('Error sending data:', error);
-      return false;
+      // Fallback to JSON method if form-urlencoded fails
+      return await sendDataAsJSON(GOOGLE_SHEETS_WEBHOOK_URL, payload);
     }
   } catch (error) {
     console.error('Error sending data to online Excel:', error);
