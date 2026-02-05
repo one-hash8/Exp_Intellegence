@@ -7414,6 +7414,22 @@ function importConditions(snapshot) {
     };
 }
 
+// Helper: save final experiment data to localStorage
+function saveExperimentDataToLocalStorage(data) {
+  try {
+    // Ensure date is set for key generation
+    if (!expInfo['date'] || expInfo['date'] === '') {
+      expInfo['date'] = util.MonotonicClock.getDateStr();
+    }
+    const participant = expInfo['participant'] || 'unknown';
+    const dateStr = expInfo['date'] || util.MonotonicClock.getDateStr();
+    const storageKey = `psychoJS_experiment_data_${participant}_${dateStr}_${Date.now()}`;
+    localStorage.setItem(storageKey, JSON.stringify(data));
+  } catch (e) {
+    console.warn('Could not save data to localStorage:', e);
+  }
+}
+
 // Function to send data to online Excel (Google Sheets)
 async function sendDataToOnlineExcel(data) {
   try {
@@ -7426,6 +7442,9 @@ async function sendDataToOnlineExcel(data) {
       expInfo['date'] = util.MonotonicClock.getDateStr();
     }
     
+    // Always save final data snapshot to localStorage
+    saveExperimentDataToLocalStorage(data);
+
     // Prepare data for sending
     const payload = {
       participant: expInfo['participant'] || 'unknown',
@@ -7436,14 +7455,6 @@ async function sendDataToOnlineExcel(data) {
       data: data,
       isCompleted: true
     };
-
-    // Save data field to localStorage before sending to Google Sheets
-    try {
-      const storageKey = `psychoJS_experiment_data_${payload.participant}_${payload.date}_${Date.now()}`;
-      localStorage.setItem(storageKey, JSON.stringify(payload.data));
-    } catch (e) {
-      console.warn('Could not save data to localStorage:', e);
-    }
 
  // Always use no-cors mode to bypass CORS restrictions
     // Note: In no-cors mode, you can't read the response, but data will be sent
@@ -7470,6 +7481,9 @@ async function sendDataToOnlineExcel(data) {
     return false;
   }
 }
+
+// Data save mode: 'google' (send to Google Sheets) or 'local_csv' (download CSV file)
+const DATA_SAVE_MODE = 'google';
 
 // Function to convert experiment data to format for online Excel
 // Returns a single entry per participant with all trial data in a 'data' field
@@ -7598,6 +7612,88 @@ function convertExperimentDataToFlatFormat() {
   }
 }
 
+// Helper: convert experiment data to CSV and trigger local download
+function saveExperimentDataToLocalCsv(experimentData) {
+  try {
+    if (!Array.isArray(experimentData) || experimentData.length === 0) {
+      console.warn('No experiment data to save locally.');
+      return;
+    }
+
+    const entry = experimentData[0] || {};
+    const trials = Array.isArray(entry.data) ? entry.data : [];
+
+    if (trials.length === 0) {
+      console.warn('Experiment data has no trial entries to save.');
+      return;
+    }
+
+    // Collect all unique trial-level keys
+    const trialKeysSet = new Set();
+    for (const trial of trials) {
+      for (const key in trial) {
+        trialKeysSet.add(key);
+      }
+    }
+    const trialKeys = Array.from(trialKeysSet);
+
+    // CSV header
+    const headers = ['participant', 'date', 'expName', 'gender', 'age', ...trialKeys];
+
+    function escapeCsvValue(value) {
+      if (value === null || value === undefined) {
+        return '';
+      }
+      let str = String(value);
+      if (str.includes('"')) {
+        str = str.replace(/"/g, '""');
+      }
+      if (str.search(/[";,\\n]/) !== -1) {
+        str = `"${str}"`;
+      }
+      return str;
+    }
+
+    const rows = [];
+    rows.push(headers.join(','));
+
+    const baseInfo = {
+      participant: entry.participant || (expInfo && expInfo['participant']) || 'unknown',
+      date: entry.date || (expInfo && expInfo['date']) || util.MonotonicClock.getDateStr(),
+      expName: entry.expName || (expInfo && expInfo['expName']) || '',
+      gender: entry.gender || (expInfo && expInfo['gender']) || '',
+      age: entry.age || (expInfo && expInfo['age']) || ''
+    };
+
+    for (const trial of trials) {
+      const rowValues = [
+        escapeCsvValue(baseInfo.participant),
+        escapeCsvValue(baseInfo.date),
+        escapeCsvValue(baseInfo.expName),
+        escapeCsvValue(baseInfo.gender),
+        escapeCsvValue(baseInfo.age),
+        ...trialKeys.map((key) => escapeCsvValue(trial[key]))
+      ];
+      rows.push(rowValues.join(','));
+    }
+
+    const csvContent = rows.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    const fileName = `experiment_${baseInfo.participant}_${baseInfo.date}.csv`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error('Error saving experiment data to local CSV:', e);
+  }
+}
+
 async function quitPsychoJS(message, isCompleted) {
   // Check for and save orphaned data
   if (psychoJS.experiment.isEntryEmpty()) {
@@ -7625,7 +7721,7 @@ async function quitPsychoJS(message, isCompleted) {
   // Also ensure dataFileName is empty
   psychoJS.experiment.dataFileName = '';
   
-  // Send data to online Excel before quitting
+  // Send or save data before quitting
   if (isCompleted) {
     try {
       // Ensure date is set before converting data
@@ -7639,7 +7735,11 @@ async function quitPsychoJS(message, isCompleted) {
         console.warn('No experiment data found! Experiment object:', psychoJS.experiment);
       }
       
-      await sendDataToOnlineExcel(experimentData);
+      if (DATA_SAVE_MODE === 'local_csv') {
+        saveExperimentDataToLocalCsv(experimentData);
+      } else {
+        await sendDataToOnlineExcel(experimentData);
+      }
     } catch (error) {
       console.error('Error preparing data for online Excel:', error);
       console.error('Error stack:', error.stack);
