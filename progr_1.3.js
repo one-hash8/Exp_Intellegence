@@ -7513,8 +7513,7 @@ function convertExperimentDataToFlatFormat() {
     ];
     
     // Patterns to exclude from keys (fields containing these substrings)
-    const excludePatterns = ['.started', '.stopped', '.rt', '.thisRepN', 
-                             '.thisTrialN', '.thisN', '.thisIndex', '.ran'];
+    const excludePatterns = ['.started', '.stopped', '.thisN', '.thisIndex', '.ran'];
     
     // Clean each entry - remove excluded fields and fields matching patterns
     const cleanedEntries = entries.map((entry) => {
