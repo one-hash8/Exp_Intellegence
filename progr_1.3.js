@@ -7612,7 +7612,7 @@ function convertExperimentDataToFlatFormat() {
   }
 }
 
-// Helper: convert experiment data to CSV and trigger local download
+// Helper: convert experiment data of a single participant to CSV and trigger local download
 function saveExperimentDataToLocalCsv(experimentData) {
   try {
     if (!Array.isArray(experimentData) || experimentData.length === 0) {
@@ -7628,7 +7628,7 @@ function saveExperimentDataToLocalCsv(experimentData) {
       return;
     }
 
-    // Collect all unique trial-level keys
+    // Collect all unique trial-level keys for this participant
     const trialKeysSet = new Set();
     for (const trial of trials) {
       for (const key in trial) {
@@ -7680,7 +7680,7 @@ function saveExperimentDataToLocalCsv(experimentData) {
     const csvContent = rows.join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
 
-    const fileName = `experiment_${baseInfo.participant}_${baseInfo.date}.csv`;
+    const fileName = `exp_result_${baseInfo.participant}_${baseInfo.date}.csv`;
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
