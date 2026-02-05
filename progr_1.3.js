@@ -7736,6 +7736,8 @@ async function quitPsychoJS(message, isCompleted) {
       }
       
       if (DATA_SAVE_MODE === 'local_csv') {
+        // Always save to localStorage as well
+        saveExperimentDataToLocalStorage(experimentData);
         saveExperimentDataToLocalCsv(experimentData);
       } else {
         await sendDataToOnlineExcel(experimentData);
